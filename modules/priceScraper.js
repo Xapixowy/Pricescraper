@@ -4,8 +4,8 @@ import randomUseragent from 'random-useragent';
 import fs from 'fs';
 
 class Product {
-   constructor(name) {
-      this.name = name;
+   constructor(name, link) {
+      this.name = '';
       this.links = {
          amazon: undefined,
          ceneo: undefined,
@@ -24,15 +24,17 @@ class Product {
          morele: 0,
          xkom: 0,
       };
+      link && this.setLink(link);
    }
+   setName(name) {}
    setLink(link) {
       if (link === undefined) throw new Error('Link is undefined! You need to enter a link!');
       const type = typeof link;
       if (type === 'string') {
-         if (link.indexOf('www.amazon.pl') >= 0) this.links.amazon = link;
+         if (link.indexOf('www.amazon.pl') >= 0) links.amazon = link;
          else if (link.indexOf('www.ceneo.pl') >= 0) this.links.ceneo = link;
          else if (link.indexOf('www.euro.pl') >= 0) this.links.euro = link;
-         else if (link.indexOf('www.komputronik.pl') >= 0) this.links.komputronik = link;
+         else if (link.indexOf('www.komputronik.pl') >= 0) this.__links.komputronik = link;
          else if (link.indexOf('www.media.pl') >= 0) this.links.media = link;
          else if (link.indexOf('www.morele.pl') >= 0) this.links.morele = link;
          else if (link.indexOf('www.xkom.pl') >= 0) this.links.xkom = link;
@@ -60,15 +62,15 @@ class Product {
    }
    setPrice(shop, price) {
       if (price === undefined) throw new Error('Price is undefined! You need to enter a price!');
-      const price = parseFloat(price);
+      const priceFloat = parseFloat(price);
       if (shop === undefined) throw new Error('Shop is undefined! You need to specify a shop!');
-      else if (shop === 'amazon') this.prices.amazon = price;
-      else if (shop === 'ceneo') this.prices.ceneo = price;
-      else if (shop === 'euro') this.prices.euro = price;
-      else if (shop === 'komputronik') this.prices.komputronik = price;
-      else if (shop === 'media') this.prices.media = price;
-      else if (shop === 'morele') this.prices.morele = price;
-      else if (shop === 'xkom') this.prices.xkom = price;
+      else if (shop === 'amazon') this.prices.amazon = priceFloat;
+      else if (shop === 'ceneo') this.prices.ceneo = priceFloat;
+      else if (shop === 'euro') this.prices.euro = priceFloat;
+      else if (shop === 'komputronik') this.prices.komputronik = priceFloat;
+      else if (shop === 'media') this.prices.media = priceFloat;
+      else if (shop === 'morele') this.prices.morele = priceFloat;
+      else if (shop === 'xkom') this.prices.xkom = priceFloat;
       else throw new Error('Shop with that name is unsupported!');
    }
    getPrice(shop) {
@@ -88,8 +90,13 @@ class Scraper {
    constructor() {
       this.products = [];
    }
-   getProducts = () => this.products;
-   addProduct(product) {}
+   getProducts() {
+      return this.products;
+   }
+   addProduct(product) {
+      if (!(product instanceof Product)) throw new Error('Product must be instance of Product class!');
+      else this.products.push(product);
+   }
 }
 
-module.exports = { Product };
+export { Product, Scraper };

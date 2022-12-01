@@ -1,4 +1,4 @@
-import { Product } from './js/priceScraper';
+import { Product, Scraper } from './modules/priceScraper.js';
 
 const links = {
    amazon:
@@ -10,8 +10,14 @@ const links = {
    xkom: 'https://www.x-kom.pl/p/540597-zasilacz-do-komputera-be-quiet-straight-power-11-850w-80-plus-platinum.html',
 };
 
-const product = new Product('be quiet! Straight Power 11 850W 80+ Platinum');
+const product = new Product('be quiet! Straight Power 11 850W 80+ Platinum', links);
+const fakeProduct = 'be quiet! Straight Power 11 850W 80+ Platinum';
+const scraper = new Scraper();
 
 product.setLink(links);
 
-console.log(product.getLinks());
+scraper.addProduct(product);
+// for (const producto of scraper.getProducts()) console.log(producto.name);
+
+console.log(product);
+// console.log(scraper);
