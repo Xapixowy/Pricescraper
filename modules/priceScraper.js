@@ -141,8 +141,8 @@ class Scraper {
                },
                euro: {
                   price: {
-                     waitFor: '.product-price.price-box',
-                     get: '.product-price.price-box'
+                     waitFor: '.price-box .product-price',
+                     get: '.price-box .product-price'
                   },
                   prompt: [
                      {
@@ -203,7 +203,6 @@ class Scraper {
                await page.goto(product.links[shop], { waitUntil: 'networkidle0' });
                const end = new Date();
                console.log(`1) Finished in ${(end - start) / 1000}s!`);
-               await logError(`${product.name}-${shop}-1`, page);
             } catch (e) {
                await logError(`${product.name}-${shop}-1`, page, `${e}`);
                return false;
@@ -212,14 +211,12 @@ class Scraper {
             try {
                console.log(`2) Waiting for selector...`);
                const start = new Date();
-               await logError(`${product.name}-${shop}-2-1`, page)
                if (selectors[shop].prompt) {
                   for(let prompt of selectors[shop].prompt) {
                      await page.waitForSelector(prompt.waitFor);
                      await page.click(prompt.click);
                   }
                } 
-               await logError(`${product.name}-${shop}-2-2`, page)
                const end = new Date();
                console.log(`2) Finished in ${(end - start) / 1000}s!`);
             } catch (e) {
@@ -247,6 +244,7 @@ class Scraper {
             price = price.replaceAll('zł','');
             price = price.replaceAll(',','.');
             product.prices[shop] = parseFloat(price);
+            if(shop === 'media') product.prices[shop] /= 100;
          }
       };
       // Provided data check
@@ -305,11 +303,8 @@ class Scraper {
             else {
                for (let linkName in product.links) {
                   const link = product.links[linkName];
-                  console.log(linkName, link);
                   if (!link) break;
-                  else {
-                    
-                  }
+                  else await getShopPrice(page, product, linkName);
                }
             }
          }
