@@ -1,0 +1,1 @@
+TimeoutError: Waiting for selector `.price-history-modal-old-content__main__chart` failed: Waiting failed: 30000ms exceeded

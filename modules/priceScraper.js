@@ -106,22 +106,25 @@ class Scraper {
          }
       } else throw new Error('Data type is unsupported! Provide an integer or a string.');
    }
-   async start(productId) {
+   async start(args = { product: undefined, verbose: false }) {
       const logError = async function (name, page, err) {
          const date = new Date();
          const dateString = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${date.getHours()}-${date.getMinutes()}-${date.getSeconds()}`;
+
          // Create file with page content
          await fs.writeFile(`./logs/${dateString}_${name}.html`, await page.content(), (err) => {
             if (err) console.log(err);
             else console.log(`./logs/${dateString}_${name}.html written successfully!`);
          });
+
          // Create file with error
-         if(err) {
+         if (err) {
             await fs.writeFile(`./logs/${dateString}_${name}.txt`, err, (err) => {
                if (err) console.log(err);
                else console.log(`./logs/${dateString}_${name}.txt written successfully!`);
             });
          }
+
          // Create screenshot with page content
          await page.screenshot({
             path: `./logs/${dateString}_${name}.jpeg`,
@@ -129,133 +132,136 @@ class Scraper {
          });
       };
 
-      const getShopPrice = async function (page, product, shop) {
-         if (!product.links[shop]) return false;
-         else {
-            const selectors = {
-               amazon: {
-                  price: {
-                     waitFor: '.a-price .a-offscreen',
-                     get: '.a-price .a-offscreen'
+      const getShopPrice = async function (page, product, shop, verbose) {
+         const selectors = {
+            amazon: {
+               price: {
+                  waitFor: '.a-price .a-offscreen',
+                  get: '.a-price .a-offscreen',
+               },
+            },
+            euro: {
+               price: {
+                  waitFor: '.product-price .price-normal',
+                  get: '.product-price .price-normal',
+               },
+               prompt: [
+                  {
+                     waitFor: '#onetrust-consent-sdk',
+                     click: '#onetrust-accept-btn-handler',
                   },
+               ],
+            },
+            komputronik: {
+               price: {
+                  waitFor: '.prices .price .proper',
+                  get: '.prices .price .proper',
                },
-               euro: {
-                  price: {
-                     waitFor: '.price-box .product-price',
-                     get: '.price-box .product-price'
+            },
+            media: {
+               price: {
+                  waitFor: '.price-box .prices .main-price',
+                  get: '.price-box .prices .main-price',
+               },
+            },
+            morele: {
+               price: {
+                  waitFor: '.product-price',
+                  get: '.product-price',
+               },
+            },
+            skapiec: {
+               price: {
+                  waitFor: '.price-history-modal-old-content__main__chart',
+                  get: '.price-history-modal-old-content__details .details-list__item:nth-of-type(1) .price',
+               },
+               prompt: [
+                  {
+                     waitFor: '#rasp_cmp',
+                     click: '.cmp-button_button.cmp-intro_acceptAll',
                   },
-                  prompt: [
-                     {
-                        waitFor: '#onetrust-consent-sdk',
-                        click: '#onetrust-accept-btn-handler'
-                     }
-                  ],
-               },
-               komputronik: {
-                  price: {
-                     waitFor: '.prices .price .proper',
-                     get: '.prices .price .proper'
-                  }
-               },
-               media: {
-                  price: {
-                     waitFor: '.price-box .prices .main-price',
-                     get: '.price-box .prices .main-price'
-                  }
-               },
-               morele: {
-                  price: {
-                     waitFor: '.product-price',
-                     get: '.product-price'
-                  }
-               },
-               skapiec: {
-                  price: {
-                     waitFor: '.price-history-modal-old-content__main__chart',
-                     get: '.price-history-modal-old-content__details .details-list__item:nth-of-type(1) .price'
+                  {
+                     waitFor: '.gtm_ua_pricehistory',
+                     click: '.gtm_ua_pricehistory',
                   },
-                  prompt: [
-                     {
-                        waitFor: '#rasp_cmp',
-                        click: '.cmp-button_button.cmp-intro_acceptAll'
-                     },
-                     {
-                        waitFor: '.gtm_ua_pricehistory',
-                        click: '.gtm_ua_pricehistory'
-                     },
-                     {
-                        waitFor: '.button.gtm_ua_ph_30d',
-                        click: '.button.gtm_ua_ph_30d'
-                     }
-                  ]
+                  {
+                     waitFor: '.button.gtm_ua_ph_30d',
+                     click: '.button.gtm_ua_ph_30d',
+                  },
+               ],
+            },
+            xkom: {
+               price: {
+                  waitFor: '.sc-n4n86h-4.jwVRpW',
+                  get: '.sc-n4n86h-4.jwVRpW',
                },
-               xkom: {
-                  price: {
-                     waitFor: '.sc-n4n86h-4.jwVRpW',
-                     get: '.sc-n4n86h-4.jwVRpW'
-                  }
-               },
-            };
-            console.log(`${shop}:`);
-            try {
-               console.log(`1) Loading website...`);
-               const start = new Date();
-               await page.goto(product.links[shop], { waitUntil: 'networkidle0' });
-               const end = new Date();
-               console.log(`1) Finished in ${(end - start) / 1000}s!`);
-            } catch (e) {
-               await logError(`${product.name}-${shop}-1`, page, `${e}`);
-               return false;
-            }
+            },
+         };
 
-            try {
-               console.log(`2) Waiting for selector...`);
-               const start = new Date();
-               if (selectors[shop].prompt) {
-                  for(let prompt of selectors[shop].prompt) {
-                     await page.waitForSelector(prompt.waitFor);
-                     await page.click(prompt.click);
-                  }
-               } 
-               const end = new Date();
-               console.log(`2) Finished in ${(end - start) / 1000}s!`);
-            } catch (e) {
-               await logError(`${product.name}-${shop}-2`, page, `${e}`);
-               return false;
-            }
-            
-            let price;
-            try {
-               console.log('3) Evaluating value of selector...');
-               const start = new Date();
-               await page.waitForSelector(selectors[shop].price.waitFor);
-               price = await page.evaluate((sel) => document.querySelector(sel).innerText, selectors[shop].price.get);
-               const end = new Date();
-               console.log(`3) Finished in ${(end - start) / 1000}s!`);
-            } catch (e) {
-               await logError(`${product.name}-${shop}-3`, page, `${e}`);
-               return false;
-            }
+         verbose && console.log(`${shop}:`);
+         try {
+            verbose && console.log(`1) Loading website...`);
+            const start = new Date();
+            await page.goto(product.links[shop], { waitUntil: 'networkidle0' });
+            const end = new Date();
+            verbose && console.log(`1) Finished in ${(end - start) / 1000}s!`);
+            await logError(`${product.name}-${shop}-1`, page);
+         } catch (e) {
+            await logError(`${product.name}-${shop}-1`, page, `${e}`);
+         }
 
-            console.log('4) Normalizing price...')
-            console.log(`PRICE: ${price}`)
-            price = price.replaceAll('\n','');
-            price = price.replaceAll('\t','');
-            price = price.replaceAll('zł','');
-            price = price.replaceAll(',','.');
+         try {
+            verbose && console.log(`2) Waiting for selector...`);
+            const start = new Date();
+            await logError(`${product.name}-${shop}-2-1`, page);
+            if (selectors[shop].prompt) {
+               for (let prompt of selectors[shop].prompt) {
+                  await page.waitForSelector(prompt.waitFor);
+                  await page.click(prompt.click);
+               }
+            }
+            await logError(`${product.name}-${shop}-2-2`, page);
+            const end = new Date();
+            verbose && console.log(`2) Finished in ${(end - start) / 1000}s!`);
+         } catch (e) {
+            await logError(`${product.name}-${shop}-2`, page, `${e}`);
+         }
+
+         let price;
+         try {
+            verbose && console.log('3) Evaluating value of selector...');
+            const start = new Date();
+            await page.waitForSelector(selectors[shop].price.waitFor);
+            price = await page.evaluate((sel) => document.querySelector(sel).innerText, selectors[shop].price.get);
+            const end = new Date();
+            verbose && console.log(`3) Finished in ${(end - start) / 1000}s!`);
+         } catch (e) {
+            await logError(`${product.name}-${shop}-3`, page, `${e}`);
+         }
+
+         {
+            verbose && console.log('4) Normalizing price...');
+            const start = new Date();
+            price = price.replaceAll('\n', '');
+            price = price.replaceAll('\t', '');
+            price = price.replaceAll('zł', '');
+            price = price.replaceAll(',', '.');
             product.prices[shop] = parseFloat(price);
-            if(shop === 'media') product.prices[shop] /= 100;
+            const end = new Date();
+            verbose && console.log(`Finished in ${(end - start) / 1000}s!`);
          }
       };
+
+      let { product, verbose } = args;
+
       // Provided data check
-      let index;
-      if (productId === undefined) index = -1;         
-      else if (typeof productId === 'number') index = productId;
-      else if (typeof productId === 'string') {
+      if (typeof product !== 'undefined' && typeof product !== 'number' && typeof product !== 'string')
+         throw new Error('Data type is unsupported! Provide an integer or a string.');
+      else if (typeof product === 'string') {
          for (let i = 0; i < this.products.length; i++) {
-            this.products[i].name.indexOf(productId) >= 0 && (index = i);
+            this.products[i].name.indexOf(product) >= 0 && (product = i);
          }
-      } else throw new Error('Data type is unsupported! Provide an integer or a string.');
+      }
 
       // Use stealth plugin in puppeteer
       puppeteer.use(puppeteerStealth());
@@ -276,40 +282,42 @@ class Scraper {
       // await page.setDefaultNavigationTimeout(0);
       // await page.setDefaultTimeout(0);
 
-      // Random user agent
-      const userAgent = randomUseragent.getRandom(function (ua) {
-         return (ua.osName === 'Windows' && parseFloat(ua.browserVersion) >=20);
-      });
-      await page.setUserAgent(userAgent);
-      console.log('USERAGENT:', userAgent);
+      // // Random user agent
+      // const userAgent = randomUseragent.getRandom(function (ua) {
+      //    return ua.osName === 'Windows' && parseFloat(ua.browserVersion) >= 20;
+      // });
+      // await page.setUserAgent(userAgent);
+      // console.log('USERAGENT:', userAgent);
 
       // Abort fonts and images in page loading
       await page.setRequestInterception(true);
       page.on('request', (req) => {
-         if (req.resourceType() == 'font' || req.resourceType() == 'image')
-            req.abort();
+         if (req.resourceType() == 'font' || req.resourceType() == 'image') req.abort();
          else req.continue();
       });
 
-      console.log('INDEX: ', index);
+      console.log('# PRODUCT: ', product);
 
-      if (index > -1) {
-         const product = this.products[index];
+      if (product >= 0) {
+         const product = this.products[product];
+         console.log('# PRODUCT >= 0: ', product);
          if (!product) throw new Error('Product is undefined!');
-         else for (let shopName in product.links) await getShopPrice(page, product, shopName);
+         else for (let shopName in product.links) await getShopPrice(page, product, shopName, verbose);
       } else {
          for (let product of this.products) {
-            if (!product.name) break; // If product doesn't have name, don't evaluate its prices
+            console.log('# PRODUCT ELSE: ', product);
+            if (!product.name) break;
             else {
-               for (let linkName in product.links) {
-                  const link = product.links[linkName];
+               for (let shopName in product.links) {
+                  const link = product.links[shopName];
                   if (!link) break;
-                  else await getShopPrice(page, product, linkName);
+                  else {
+                     await getShopPrice(page, product, shopName, verbose);
+                  }
                }
             }
          }
       }
-
       await browser.close();
    }
 }
